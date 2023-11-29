@@ -1,16 +1,25 @@
-import requests
+import os
 import json
+import requests
+
 from tqdm import tqdm
 
-class vk_photos:
-    def __init__(self, user_id, access_token, url):
+class VkPhotos:
+    def __init__(self, user_id, access_token):
         self.user_id = user_id
         self.access_token = access_token
-        self.url = url
 
     def get_photos(self):
-        headers = {"Authorization": f"OAuth {self.access_token}"}
-        response = requests.get(self.url, headers=headers)
+        url = "https://api.vk.com/method/photos.get"
+        params = {
+            "owner_id": self.user_id,
+            "album_id": "profile",
+            "extended": 1,
+            "count": 5,
+            "access_token": self.access_token,
+            "v": "5.131"
+        }
+        response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
         if 'response' in data:
@@ -20,7 +29,7 @@ class vk_photos:
             photos = []
         return photos
 
-class yandex_disk:
+class YandexDisk:
     def __init__(self, access_token):
         self.access_token = access_token
 
@@ -51,10 +60,10 @@ class yandex_disk:
             for photo in photos:
                 likes = photo['likes']['count']
                 date = photo['date']
-                photo_url = photo['sizes'][-1]['url']
+                photo_url = max(photo['sizes'], key=lambda x: x['width'] * x['height'])['url']
                 status_code = self.upload_photo(photo_url, f"{likes}.jpg", folder_name)
                 if status_code == 202:
-                    result.append({"file_name": f"{likes}.jpg", "size": "z"})
+                    result.append({"file_name": f"{likes}.jpg", "size": "max"})
                 pbar.update(1)
         try:
             with open("photos.json", "w") as f:
@@ -62,13 +71,13 @@ class yandex_disk:
         except Exception as e:
             print(f"Error writing to file: {e}")
 
-user_id = input("Enter VK user ID: ")
-access_token_vk = 'vk1.a.l-RjfRQvzqPj82h8dh0BnUqnqHLpTrnjFDZ-0ZmPb5e1jtmBs8xYmNgE276GvCo0fFTiwCIGpF-vM4Z0rwYKsL70UscF8OC7hHIHvEee1BECeVpOJKcym-ap_Q9jwS9m4n_esPFF7f-2eTVLynz8zgUS2q1hxP0tshaGLtJ_3gNQcGmq-ouDYwJjrHHB0bTsFoesm6tOJQ9pbkdC3a3n4w'
-access_token_yandex = input("Enter Yandex.Disk token: ")
+if __name__ == '__main__':
+    user_id = input("Enter VK user ID: ")
+    access_token_yandex = input("Enter Yandex.Disk access token: ")
 
-vk_photos_instance = vk_photos(user_id, access_token_vk, f"https://api.vk.com/method/photos.get?owner_id={user_id}&album_id=profile&extended=1&count=5&access_token={access_token_vk}&v=5.131")
-yandex_disk_instance = yandex_disk(access_token_yandex)
-
-photos = vk_photos_instance.get_photos()
-yandex_disk_instance.save_photos(photos)
+    access_token_vk = "VK access token"
+    VKPhotos_instance = VkPhotos(user_id, access_token_vk)
+    YandexDisk_instance = YandexDisk(access_token_yandex)
+    photos = VKPhotos_instance.get_photos()
+    YandexDisk_instance.save_photos(photos)
 
